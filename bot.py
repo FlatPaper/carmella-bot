@@ -1,3 +1,5 @@
+import random
+
 import discord
 from discord.ext import commands, tasks
 from discord import app_commands
@@ -12,7 +14,106 @@ description = '''Bot personalized for carmellaco. Also a side project for fun.''
 intents = discord.Intents.default()
 intents.message_content = True
 intents.guilds = True
-bot = commands.Bot(command_prefix='c?', intents=intents)
+bot = commands.Bot(command_prefix=config.COMMAND_PREFIX, intents=intents)
+
+filtered_image_list = []
+banner_task = None
+
+
+def load_images():
+    """
+    void function to store a list of images (str) and shuffle it randomly
+    """
+    global filtered_image_list
+    filtered_image_list = [os.path.join(config.FILTERED_FANART_SAVE_DIR, f)
+                           for f in os.listdir(config.FILTERED_FANART_SAVE_DIR)
+                           if os.path.isfile(os.path.join(config.FILTERED_FANART_SAVE_DIR, f))]
+    random.shuffle(filtered_image_list)
+
+
+async def change_banner():
+    """
+    function to change discord banner from `filtered_image_list`
+    runs iteratively through the list and updates banner using discord.py API
+    :return:
+    """
+    global filtered_image_list
+
+    guild = bot.get_guild(config.SERVER_ID)
+    log_channel = bot.get_channel(config.LOG_CHANNEL_ID)
+    current_time_unix = int(datetime.now().timestamp())  # unix time for discord logging
+    current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')  # normal format time for console logging
+
+    # load images from folder if global image list is empty
+    if not filtered_image_list:
+        print(f'Image list is empty at {current_time}.')
+        await log_channel.send(f'Image list is empty at <t:{current_time_unix}:F>.')
+        load_images()
+        print(f'Refilled image list at {current_time} with {len(filtered_image_list)} images.')
+        await log_channel.send(f'Refilled image list at <t:{current_time_unix}:F> with {len(filtered_image_list)} '
+                               f'images.')
+
+    # pop top of the stack from the list, so we don't get it again
+    image_path = filtered_image_list.pop()
+
+    with open(image_path, 'rb') as img:
+        banner = img.read()
+
+    # set discord banner while checking exceptions
+    if guild:
+        try:
+            await guild.edit(banner=banner)
+            print(f'Changed banner to `{image_path}` at time {current_time}.')
+            await log_channel.send(f'Changed banner to `{image_path}` at time <t:{current_time_unix}:F>.')
+        except discord.Forbidden as e:
+            print(f'Failed to change banner at time {current_time} due to insufficient permissions: {e}')
+            await log_channel.send(f'Failed to change banner at time <t:{current_time_unix}:F> due to insufficient '
+                                   f'permissions: {e}')
+        except discord.HTTPException as e:
+            print(f'Failed to change banner at time {current_time} due to an HTTPException: {e}')
+            await log_channel.send(f'Failed to change banner at time <t:{current_time_unix}:F> due to an '
+                                   f'HTTPException: {e}')
+        except Exception as e:
+            print(f'Failed to change banner at time {current_time}: {e}')
+            await log_channel.send(f'Failed to change banner at time <t:{current_time_unix}:F>: {e}')
+
+
+async def change_banner_task(ctx, interval):
+    """
+    function responsible for repeatedly changing the server banner at an interval
+    :param ctx:
+    :param interval: int
+        number of minutes to wait before changing server banner (recommended is 5)
+    :return:
+    """
+    while True:
+        await change_banner()
+        await asyncio.sleep(interval * 60)
+
+
+@bot.command()
+async def change_banner_periodically(ctx, minutes=5):
+    """
+    command function responsible for to allow the user to start or stop the periodic banner
+    changing task with a specified interval
+    :param ctx:
+    :param minutes: int
+        number of minutes to wait before changing banner
+    :return:
+    """
+    if ctx.author.id != config.FLATPAPER_DISCORD_ID:
+        print(f'Unauthorized usage of change_banner_periodically by {ctx.author.id}.')
+        await ctx.send(f'Unauthorized usage of change_banner_periodically by {ctx.author.display_name}.')
+        return
+
+    global banner_task
+
+    if banner_task and not banner_task.done():
+        banner_task.cancel()
+        await ctx.send("Stopped the previous banner change task.")
+
+    banner_task = bot.loop.create_task(change_banner_task(ctx, minutes))
+    await ctx.send(f"Started changing banner every {minutes} minutes.")
 
 
 @bot.tree.command(name='dl_img_from_ch_before_date',
