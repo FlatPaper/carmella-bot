@@ -5,10 +5,7 @@ import aiohttp
 import os
 from datetime import datetime
 import asyncio
-
-FLATPAPER_DISCORD_ID =
-TOKEN = ''
-SAVE_DIR = ''
+import config
 
 description = '''Bot personalized for carmellaco. Also a side project for fun.'''
 
@@ -23,7 +20,7 @@ bot = commands.Bot(command_prefix='c?', intents=intents)
 @app_commands.describe(channel="Channel to download images from", date="Date in YYYY-MM-DD")
 async def download_images_from_channel_after_date(interaction: discord.Interaction, channel: discord.TextChannel,
                                                   date: str):
-    if interaction.user.id != FLATPAPER_DISCORD_ID:  # only flatpaper should download images to his own machine...
+    if interaction.user.id != config.FLATPAPER_DISCORD_ID:
         await interaction.followup.send("Only FlatPaper should be able to run this.")
         return
 
@@ -50,8 +47,8 @@ async def download_images_from_channel_after_date(interaction: discord.Interacti
     if not image_urls:
         await interaction.followup.send("No images found.")
         return
-    if not os.path.exists('fanart_downloads'):
-        os.makedirs('fanart_downloads')
+    if not os.path.exists(config.FANART_SAVE_DIR):
+        os.makedirs(config.FANART_SAVE_DIR)
 
     async with aiohttp.ClientSession() as session:
         for i, url in enumerate(image_urls):
@@ -60,7 +57,7 @@ async def download_images_from_channel_after_date(interaction: discord.Interacti
                 async with session.get(url) as response:
                     if response.status == 200:
                         file_name = url.split('/')[-1].split('?')[0]  # split to get file name
-                        file_path = os.path.join('fanart_downloads', file_name)
+                        file_path = os.path.join(config.FANART_SAVE_DIR, file_name)
                         with open(file_path, 'wb') as f:
                             f.write(await response.read())
                     else:
@@ -71,6 +68,7 @@ async def download_images_from_channel_after_date(interaction: discord.Interacti
             await asyncio.sleep(1)
 
     await interaction.followup.send(f'Downloaded {len(image_urls)} images.')
+    print(f'Downloaded {len(image_urls)} images.')
 
 
 @bot.tree.command(name='ping', description='Bot Latency')
@@ -80,7 +78,7 @@ async def ping(interaction: discord.Interaction):
 
 @bot.command(description='Sync slash commands (flatpaper only)')
 async def sync_slash_commands(ctx: discord.ext.commands.Context):
-    if ctx.author.id == FLATPAPER_DISCORD_ID:
+    if ctx.author.id == config.FLATPAPER_DISCORD_ID:
         s = await bot.tree.sync()
         print(f'Synced {len(s)} commands.')
         await ctx.send("Updated slash commands.")
@@ -94,4 +92,4 @@ async def on_ready():
     print('------')
 
 
-bot.run(TOKEN)
+bot.run(config.TOKEN)
