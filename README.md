@@ -4,4 +4,4 @@ Goal of the bot is to have some personalized commands in [carmellaco](https://ww
 
 Main functionality is to provide the option to change discord server banner periodically without hitting the discord API rate limit, pulling images from #fanart.
 
-![suisei badminton carmellaco art](sui_badminton.png)
+<img src="sui_badminton.png" width="300" />
