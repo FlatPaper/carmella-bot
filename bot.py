@@ -31,7 +31,7 @@ def load_images():
     random.shuffle(filtered_image_list)
 
 
-async def change_banner():
+async def change_banner(discord_logging):
     """
     function to change discord banner from `filtered_image_list`
     runs iteratively through the list and updates banner using discord.py API
@@ -47,11 +47,12 @@ async def change_banner():
     # load images from folder if global image list is empty
     if not filtered_image_list:
         print(f'Image list is empty at {current_time}.')
-        await log_channel.send(f'Image list is empty at <t:{current_time_unix}:F>.')
+        discord_logging and await log_channel.send(f'Image list is empty at <t:{current_time_unix}:F>.')
         load_images()
         print(f'Refilled image list at {current_time} with {len(filtered_image_list)} images.')
-        await log_channel.send(f'Refilled image list at <t:{current_time_unix}:F> with {len(filtered_image_list)} '
-                               f'images.')
+        discord_logging and await log_channel.send(
+            f'Refilled image list at <t:{current_time_unix}:F> with {len(filtered_image_list)} '
+            f'images.')
 
     # pop top of the stack from the list, so we don't get it again
     image_path = filtered_image_list.pop()
@@ -64,56 +65,70 @@ async def change_banner():
         try:
             await guild.edit(banner=banner)
             print(f'Changed banner to `{image_path}` at time {current_time}.')
-            await log_channel.send(f'Changed banner to `{image_path}` at time <t:{current_time_unix}:F>.')
+            discord_logging and await log_channel.send(
+                f'Changed banner to `{image_path}` at time <t:{current_time_unix}:F>.')
         except discord.Forbidden as e:
             print(f'Failed to change banner at time {current_time} due to insufficient permissions: {e}')
-            await log_channel.send(f'Failed to change banner at time <t:{current_time_unix}:F> due to insufficient '
-                                   f'permissions: {e}')
+            discord_logging and await log_channel.send(
+                f'Failed to change banner at time <t:{current_time_unix}:F> due to insufficient '
+                f'permissions: {e}')
         except discord.HTTPException as e:
             print(f'Failed to change banner at time {current_time} due to an HTTPException: {e}')
-            await log_channel.send(f'Failed to change banner at time <t:{current_time_unix}:F> due to an '
-                                   f'HTTPException: {e}')
+            discord_logging and await log_channel.send(
+                f'Failed to change banner at time <t:{current_time_unix}:F> due to an '
+                f'HTTPException: {e}')
         except Exception as e:
             print(f'Failed to change banner at time {current_time}: {e}')
-            await log_channel.send(f'Failed to change banner at time <t:{current_time_unix}:F>: {e}')
+            discord_logging and await log_channel.send(
+                f'Failed to change banner at time <t:{current_time_unix}:F>: {e}')
 
 
-async def change_banner_task(ctx, interval):
+async def change_banner_task(interval, discord_logging):
     """
     function responsible for repeatedly changing the server banner at an interval
+    :param discord_logging:
     :param ctx:
     :param interval: int
         number of minutes to wait before changing server banner (recommended is 5)
     :return:
     """
     while True:
-        await change_banner()
+        await change_banner(discord_logging)
         await asyncio.sleep(interval * 60)
 
 
-@bot.command()
-async def change_banner_periodically(ctx, minutes=5):
+@bot.tree.command(name='change_banner_periodically', description="Change server banner periodically from fan art.")
+@app_commands.describe(minutes="Interval in minutes to change banner",
+                       logging="Determine if we should log changes in discord channel")
+async def change_banner_periodically(interaction: discord.Interaction, minutes: int = 5, logging: bool = False):
     """
-    command function responsible for to allow the user to start or stop the periodic banner
-    changing task with a specified interval
-    :param ctx:
-    :param minutes: int
-        number of minutes to wait before changing banner
+    Slash command to change server banner periodically.
+    :param interaction:
+    :param minutes: Integer value which is the interval in minutes to change the banner.
+    :param logging: Bool value to determine if we should turn on discord logging or not
     :return:
     """
-    if ctx.author.id != config.FLATPAPER_DISCORD_ID:
-        print(f'Unauthorized usage of change_banner_periodically by {ctx.author.id}.')
-        await ctx.send(f'Unauthorized usage of change_banner_periodically by {ctx.author.display_name}.')
+    if interaction.user.id != config.FLATPAPER_DISCORD_ID:
+        print(f'Unauthorized usage of change_banner_periodically by {interaction.user.id}.')
+        await interaction.response.send_message(
+            f'Unauthorized usage of change_banner_periodically by {interaction.user.display_name}.')
         return
 
     global banner_task
 
     if banner_task and not banner_task.done():
         banner_task.cancel()
-        await ctx.send("Stopped the previous banner change task.")
+        await interaction.response.send_message("Stopped the previous banner change task.")
 
-    banner_task = bot.loop.create_task(change_banner_task(ctx, minutes))
-    await ctx.send(f"Started changing banner every {minutes} minutes.")
+    banner_task = bot.loop.create_task(change_banner_task(minutes, logging))
+    await interaction.response.send_message(f"Started changing banner every {minutes} minutes.")
+
+
+@bot.tree.command(name='get_banner_queue_size', description='Fetches server banner queue size.')
+async def get_banner_queue_size(interaction: discord.Interaction):
+    queue_size = len(filtered_image_list)
+    await interaction.response.send_message(f"There are {queue_size} fan-art images in the queue before it gets "
+                                            f"refilled.")
 
 
 @bot.tree.command(name='dl_img_from_ch_before_date',
