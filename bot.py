@@ -68,19 +68,19 @@ async def change_banner(discord_logging):
             discord_logging and await log_channel.send(
                 f'Changed banner to `{image_path}` at time <t:{current_time_unix}:F>.')
         except discord.Forbidden as e:
-            print(f'Failed to change banner at time {current_time} due to insufficient permissions: {e}')
+            print(f'Failed to change banner `{image_path}` at time {current_time} due to insufficient permissions: {e}')
             discord_logging and await log_channel.send(
-                f'Failed to change banner at time <t:{current_time_unix}:F> due to insufficient '
+                f'Failed to change banner `{image_path}` at time <t:{current_time_unix}:F> due to insufficient '
                 f'permissions: {e}')
         except discord.HTTPException as e:
-            print(f'Failed to change banner at time {current_time} due to an HTTPException: {e}')
+            print(f'Failed to change banner `{image_path}` at time {current_time} due to an HTTPException: {e}')
             discord_logging and await log_channel.send(
-                f'Failed to change banner at time <t:{current_time_unix}:F> due to an '
+                f'Failed to change banner `{image_path}` at time <t:{current_time_unix}:F> due to an '
                 f'HTTPException: {e}')
         except Exception as e:
-            print(f'Failed to change banner at time {current_time}: {e}')
+            print(f'Failed to change banner `{image_path}` at time {current_time}: {e}')
             discord_logging and await log_channel.send(
-                f'Failed to change banner at time <t:{current_time_unix}:F>: {e}')
+                f'Failed to change banner `{image_path}` at time <t:{current_time_unix}:F>: {e}')
 
 
 async def change_banner_task(interval, discord_logging):
