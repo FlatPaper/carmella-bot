@@ -1,5 +1,4 @@
 import random
-
 import discord
 from discord.ext import commands, tasks
 from discord import app_commands
@@ -185,37 +184,6 @@ async def download_images_from_channel_after_date(interaction: discord.Interacti
 
     await interaction.followup.send(f'Downloaded {len(image_urls)} images.')
     print(f'Downloaded {len(image_urls)} images.')
-
-
-def load_bad_words(file_path):
-    with open(file_path, 'r') as file:
-        return [line.strip().lower() for line in file.readlines()]
-
-
-bad_words = load_bad_words(config.BANNED_WORDS_FILE)
-
-
-@bot.event
-async def on_message(message):
-    if message.author == bot.user:
-        return
-
-    if any(bad_word in message.content.lower() for bad_word in bad_words):
-        log_channel = bot.get_channel(config.LOG_CHANNEL_ID)
-        if log_channel:
-            spoilered_message_content = f'||{message.content}||'
-            embed = discord.Embed(
-                title="Deleted Message",
-                description=f"Message from {message.author.mention} was deleted - reasoning: slurs.",
-                color=discord.Color.red()
-            )
-            embed.add_field(name="Content", value=spoilered_message_content, inline=False)
-            embed.add_field(name="Channel", value=message.channel.mention, inline=True)
-            embed.add_field(name="Author", value=message.author, inline=True)
-            await log_channel.send(embed=embed)
-            print(f'Deleted message from {message.author}: {message.content}')
-        await message.delete()
-    await bot.process_commands(message)
 
 
 @bot.tree.command(name='ping', description='Bot Latency')
